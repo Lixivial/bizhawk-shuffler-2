@@ -20,7 +20,7 @@ plugin.settings =
 
 plugin.description =
 [[
-	This simple plugin allows an assignable hotkey for skipping to the next game in the shuffler list and reset the timer.
+	This simple plugin allows an assignable hotkey for skipping to the next game in the shuffler list.
 ]]
 
 function plugin.on_frame(data, settings)
