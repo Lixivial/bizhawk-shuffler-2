@@ -71,7 +71,7 @@ function build_settings()
 		{ name='enable_encounter_swap', type='boolean', label='Enable shuffling on enemy encounters' },
 		{ name='encounter_type', type='select', label='', default=0xFFFF, options=get_encounter_names() },
 		{ name='enable_level_up_swap', type='boolean', label='Shuffle on level up' },
-		{ name='enable_critical_hit_swap', type='boolean', label='Shuffle on critcal hit' },
+		{ name='enable_critical_hit_swap', type='boolean', label='Shuffle on critical hit' },
 		{ name='enable_death_swap', type='boolean', label='Shuffle on death' }
 	}
 end
