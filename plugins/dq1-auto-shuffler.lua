@@ -15,6 +15,7 @@ local FAILED_WORD_POINTER = 0x0012
 
 local player_level = 1
 local current_hp = 1
+local swap_tracking_table = {}
 
 local DIALOG_WORD_TABLE = {
 	{ value=0x002D, name='Excellent' },
@@ -104,7 +105,9 @@ plugin.description =
 ]]
 
 function plugin.on_game_load(data, settings)
-	log_message('romname loaded ' .. gameinfo.getromname())
+	log_message('romname, romhash loaded ' .. gameinfo.getromname() .. ', ' .. gameinfo.getromhash())
+
+	swap_tracking_table[gameinfo.getromhash()] = swap_tracking_table[gameinfo.getromhash()] or {}
 
 	on_title_screen = memory.read_u8(BACKGROUND_CHR_ROM_ADDRESS) == 00
 	player_level = mainmemory.read_u8(PLAYER_LEVEL_ADDRESS)
@@ -116,6 +119,7 @@ function plugin.on_game_load(data, settings)
 
 	log_message('game load player level ' .. player_level)
 	log_message('game load current hp ' .. current_hp)
+	log_message('game load swap_tracking_table ' .. serializeTable(swap_tracking_table[gameinfo.getromhash()]))
 end
 
 function plugin.on_frame(data, settings)
@@ -123,6 +127,11 @@ function plugin.on_frame(data, settings)
 
 	if settings.enable_critical_hit_swap then
 		will_swap = check_critical_hit_swap_rules()
+
+		swap_tracking_table[gameinfo.getromhash()]["enable_critical_hit_swap"] = nil
+
+		-- TODO: Adjust will_swap data type to track what is causing the swap and clean up this logic to avoid nested if's
+		if will_swap then swap_tracking_table[gameinfo.getromhash()]["enable_critical_hit_swap"] = true end
 	end
 
 	if settings.enable_encounter_swap and settings.encounter_type ~= nil and not will_swap then
@@ -156,9 +165,18 @@ function get_encounter_by_value(value)
 end
 
 function check_critical_hit_swap_rules()
+	has_swapped = swap_tracking_table[gameinfo.getromhash()]["enable_critical_hit_swap"]
+
+	-- Check the tracking value since we've already swapped and are trying to swap again upon load
+	if (has_swapped == true or has_swapped == nil) then
+		return false
+	end
+
 	-- Check the dialog pointer to ensure it is currently processing the phrase "Excellent move!" and has finished doing so
 	if (mainmemory.read_u8(DIALOG_TEXT_POINTER) == EXCELLENT_MOVE_WORD_POINTER and
-		mainmemory.read_u8(0x0008) == EXCELLENT_MOVE_TERMINATOR) then
+		mainmemory.read_u8(0x0008) == EXCELLENT_MOVE_TERMINATOR and
+		has_swapped == false) then
+		log_message('initiating swap because tracking table value is: ' .. tostring(has_swapped))
 		log_message("initiate excellent move swap")
 		return true
 	end
@@ -231,6 +249,38 @@ function bitand(a, b)
     return result
 end
 
+function serializeTable(val, name, skipnewlines, depth)
+    skipnewlines = skipnewlines or false
+    depth = depth or 0
 
+    local tmp = string.rep(" ", depth)
+    if name then
+    	if not string.match(name, '^[a-zA-z_][a-zA-Z0-9_]*$') then
+    		name = string.gsub(name, "'", "\\'")
+    		name = "['".. name .. "']"
+    	end
+    	tmp = tmp .. name .. " = "
+     end
+
+    if type(val) == "table" then
+        tmp = tmp .. "{" .. (not skipnewlines and "\n" or "")
+
+        for k, v in pairs(val) do
+            tmp =  tmp .. serializeTable(v, k, skipnewlines, depth + 1) .. "," .. (not skipnewlines and "\n" or "")
+        end
+
+        tmp = tmp .. string.rep(" ", depth) .. "}"
+    elseif type(val) == "number" then
+        tmp = tmp .. tostring(val)
+    elseif type(val) == "string" then
+        tmp = tmp .. string.format("%q", val)
+    elseif type(val) == "boolean" then
+        tmp = tmp .. (val and "true" or "false")
+    else
+        tmp = tmp .. "\"[inserializeable datatype:" .. type(val) .. "]\""
+    end
+
+    return tmp
+end
 
 return plugin
